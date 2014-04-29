@@ -59,6 +59,34 @@ class NetworkManager(object):
         self._client.virtual_network_delete(id=vnet.uuid)
     # end delete
 
+    def get(self, name):
+        netname = self._netname(name)
+        fq_name = netname.split(':')
+        try:
+            vnet = self._client.virtual_network_read(fq_name=fq_name)
+        except NoIdError:
+            print 'Network %s does not exist' % netname
+            sys.exit(1)
+
+        print 'name: %s' % ':'.join(vnet.fq_name)
+        print 'uuid: %s' % vnet.uuid
+
+        ipam_refs = vnet.get_network_ipam_refs()
+        if ipam_refs is None:
+            ipam_refs = []
+        for iref in ipam_refs:
+            subnets = iref['attr'].ipam_subnets
+            for snet in subnets:
+                print '    ',
+                print(snet.subnet.__dict__)
+
+        instance_list = vnet.get_routing_instances()
+        if len(instance_list):
+            return self._client.routing_instance_read(
+                id=instance_list[0]['uuid'])
+
+    # end get
+
     def show(self, name):
         netname = self._netname(name)
         fq_name = netname.split(':')

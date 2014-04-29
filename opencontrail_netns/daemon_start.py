@@ -36,7 +36,7 @@ def daemon_start():
     parser.add_argument("-p", "--api-port", type=int, help="API server port")
     parser.add_argument("-n", "--network", help="Primary network")
     parser.add_argument("-o", "--outbound", help="Outbound traffic network")
-    parser.add_argument("daemon", help="Deamon Name")
+    parser.add_argument("daemon", help="Daemon Name")
 
     arguments = parser.parse_args(sys.argv)
 
