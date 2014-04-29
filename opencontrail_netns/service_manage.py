@@ -24,7 +24,7 @@ class ServiceManager(object):
             st_obj = self._client.service_template_read(fq_name=st_fq_name)
             st_uuid = st_obj.uuid
         except NoIdError:
-            domain = self._client.domain_read(fq_name=self._default_domain)
+            domain = self._client.domain_read(fq_name_str=self._default_domain)
             st_obj = ServiceTemplate(name=self._st_name, domain_obj=domain)
             st_uuid = self._client.service_template_create(st_obj)
 
@@ -35,7 +35,7 @@ class ServiceManager(object):
         svc_properties.set_service_mode('in-network-nat')
 
         if_list = [['left', False], ['right', False]]
-        for itf in self._if_list:
+        for itf in if_list:
             if_type = ServiceTemplateInterfaceType(shared_ip=itf[1])
             if_type.set_service_interface_type(itf[0])
             svc_properties.add_interface_type(if_type)
@@ -63,11 +63,11 @@ class ServiceManager(object):
             return
 
         # create si
-        print "Creating service instance %s" % (self._args.instance_name)
+        print "Creating service instance %s" % (self._si_name)
         si_fq_name = [self._default_domain, self._project, self._si_name]
-        left_fq_name = [self.default_domain, self._project, self._left]
-        right_fq_name = [self.default_domain, self._project, self._right]
-        project = self._client.project_read(fq_name=self._proj_fq_name)
+        left_fq_name = [self._default_domain, self._project, self._left]
+        right_fq_name = [self._default_domain, self._project, self._right]
+        project = self._client.project_read(fq_name=[self._default_domain, self._project])
         try:
             si_obj = self._client.service_instance_read(fq_name=si_fq_name)
             si_uuid = si_obj.uuid
@@ -94,21 +94,18 @@ class ServiceManager(object):
     def create_policy_service_chain(self, name=None):
         if name:
             self._np_name = name
-        if self._vn_fq_list == [] or self._svc_list == []:
-            print "Error: VN list or Service list is empty"
-            return
 
         si_fq_name = [self._default_domain, self._project, self._si_name]
         vn_fq_list = [[self._default_domain, self._project, self._left],
                       [self._default_domain, self._project, self._right]]
 
-        print "Create and attach policy %s" % (self._args.policy_name)
-        project = self._client.project_read(fq_name=[self._domain, self._projet])
+        print "Create and attach policy %s" % (self._np_name)
+        project = self._client.project_read(fq_name=[self._default_domain, self._project])
         try:
             vn_obj_list = [self._client.virtual_network_read(vn)
-                           for vn in self._vn_fq_list]
+                           for vn in vn_fq_list]
         except NoIdError:
-            print "Error: VN(s) %s not found" % (self._args.vn_list)
+            print "Error: VN(s) %s not found" % (self.vn_fq_list)
             return
 
         addr_list = [AddressType(virtual_network=vn.get_fq_name_str())
@@ -129,7 +126,7 @@ class ServiceManager(object):
         np_obj = NetworkPolicy(name=self._np_name,
                                network_policy_entries=pentry,
                                parent_obj=project)
-        np_uuid = self._client.network_policy_create(np)
+        np_uuid = self._client.network_policy_create(np_obj)
 
         seq = SequenceType(1, 1)
         vn_policy = VirtualNetworkPolicyType(seq, timer)

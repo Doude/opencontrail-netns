@@ -4,6 +4,7 @@ import sys
 
 
 def shell_command(str):
+    str = "sudo %s" % (str)
     cmd = subprocess.check_output(str, shell=True)
     return cmd
 

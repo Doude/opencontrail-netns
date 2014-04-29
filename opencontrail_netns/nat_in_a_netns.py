@@ -9,6 +9,11 @@ from lxc_manager import LxcManager
 from vrouter_control import interface_register
 from service_manage import ServiceManager
 
+def build_network_name(domain_name, project_name, network_name):
+    if network_name.find(':') == 2:
+        return network_name
+    return "%s:%s:%s" % (domain_name, project_name, network_name.split(':')[-1])
+
 def service_chain_start():
     """
     Creates a virtual-machine and vmi object in the API server.
@@ -22,7 +27,8 @@ def service_chain_start():
     defaults = {
         'api_server': '127.0.0.1',
         'api_port': 8082,
-        'project': 'default-domain:default-project',
+        'domain': 'default-domain',
+        'project': 'default-project',
         'network': 'default-network',
     }
     parser.set_defaults(**defaults)
@@ -31,6 +37,8 @@ def service_chain_start():
     parser.add_argument("daemon", help="Daemon Name")
     parser.add_argument("-s", "--api-server", help="API server address")
     parser.add_argument("-p", "--api-port", type=int, help="API server port")
+    parser.add_argument("--domain", help="OpenStack domain name",
+                        action="store")
     parser.add_argument("--project", help="OpenStack project name",
                         action="store")
 
@@ -45,9 +53,9 @@ def service_chain_start():
 
     vm = provisioner.virtual_machine_locate(instance_name)
 
-    network = build_network_name(arguments.project, arguments.left_network)
+    network = build_network_name(arguments.domain, arguments.project, arguments.left_network)
     vmi_left = provisioner.vmi_locate(vm, network, 'veth0')
-    network = build_network_name(arguments.project, arguments.right_network)
+    network = build_network_name(arguments.domain, arguments.project, arguments.right_network)
     vmi_right = provisioner.vmi_locate(vm, network, 'veth1')
 
     lxc.namespace_init(arguments.daemon)
