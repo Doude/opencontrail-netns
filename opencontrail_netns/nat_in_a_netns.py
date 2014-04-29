@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import argparse
 import socket
 import sys
@@ -18,20 +20,21 @@ def service_chain_start():
     """
     parser = argparse.ArgumentParser()
     defaults = {
-        'api-server': '127.0.0.1',
-        'api-port': 8082,
+        'api_server': '127.0.0.1',
+        'api_port': 8082,
         'project': 'default-domain:default-project',
         'network': 'default-network',
     }
     parser.set_defaults(**defaults)
+    parser.add_argument("left_network", help="Left network")
+    parser.add_argument("right_network", help="Right network")
+    parser.add_argument("daemon", help="Daemon Name")
     parser.add_argument("-s", "--api-server", help="API server address")
     parser.add_argument("-p", "--api-port", type=int, help="API server port")
-    parser.add_argument("--project", help="OpenStack project name")
-    parser.add_argument("left-network", help="Left network")
-    parser.add_argument("right-network", help="Right network")
-    parser.add_argument("daemon", help="Daemon Name")
+    parser.add_argument("--project", help="OpenStack project name",
+                        action="store")
 
-    arguments = parser.parse_args(sys.argv)
+    arguments = parser.parse_args()
 
     lxc = LxcManager()
     provisioner = Provisioner(api_server=arguments.api_server,
@@ -39,10 +42,13 @@ def service_chain_start():
                               project=arguments.project)
 
     instance_name = '%s-%s' % (socket.gethostname(), arguments.daemon)
+
     vm = provisioner.virtual_machine_locate(instance_name)
 
-    vmi_left = provisioner.vmi_locate(vm, arguments.left_network, 'veth0')
-    vmi_right = provisioner.vmi_locate(vm, arguments.right_network, 'veth1')
+    network = build_network_name(arguments.project, arguments.left_network)
+    vmi_left = provisioner.vmi_locate(vm, network, 'veth0')
+    network = build_network_name(arguments.project, arguments.right_network)
+    vmi_right = provisioner.vmi_locate(vm, network, 'veth1')
 
     lxc.namespace_init(arguments.daemon)
     if vmi_left:
@@ -63,9 +69,5 @@ def service_chain_start():
     service_chain.create_service_instance()
     service_chain.create_policy_service_chain()
 
-def main(args_str=None):
-    service_chain_start()
-# end main
-
 if __name__ == "__main__":
-    main()
+    service_chain_start()
