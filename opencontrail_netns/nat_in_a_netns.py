@@ -1,4 +1,5 @@
 import argparse
+import socket
 import sys
 
 from instance_provisioner import Provisioner
@@ -25,9 +26,9 @@ def service_chain_start():
     parser.set_defaults(**defaults)
     parser.add_argument("-s", "--api-server", help="API server address")
     parser.add_argument("-p", "--api-port", type=int, help="API server port")
-    parser.add_argument("-p", "--project", help="OpenStack project name")
-    parser.add_argument("-n", "--left-network", help="Primary network")
-    parser.add_argument("-o", "--right-network", help="Outbound traffic network")
+    parser.add_argument("--project", help="OpenStack project name")
+    parser.add_argument("left-network", help="Left network")
+    parser.add_argument("right-network", help="Right network")
     parser.add_argument("daemon", help="Daemon Name")
 
     arguments = parser.parse_args(sys.argv)
