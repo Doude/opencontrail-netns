@@ -2,6 +2,16 @@
 
 from vnc_api.vnc_api import *
 
+def build_network_name(domain_name, project_name, network_name):
+    if len(network_name.split(':')) == 3:
+        return network_name
+    return "%s:%s:%s" % (domain_name, project_name, network_name.split(':')[-1])
+
+def build_network_fq_name(domain_name, project_name, network_name):
+    if len(network_name.split(':')) == 3:
+        return network_name.split(':')
+    return [domain_name, project_name, network_name]
+
 
 class ServiceManager(object):
     def __init__(self, api_server, api_port, left, right, project='default-project'):
@@ -12,8 +22,11 @@ class ServiceManager(object):
         self._st_name = "netns-nat-template"
         self._si_name = "netns-nat-instance"
         self._np_name = "netns_nat_policy"
+        self._rt_name = "netns_nat_route"
         self._left = left
+        self._left_fq_name = build_network_fq_name(self._default_domain, self._project, self._left)
         self._right = right
+        self._right_fq_name = build_network_fq_name(self._default_domain, self._project, self._right)
 
     def create_service_template(self, name=None):
         if name:
@@ -65,8 +78,6 @@ class ServiceManager(object):
         # create si
         print "Creating service instance %s" % (self._si_name)
         si_fq_name = [self._default_domain, self._project, self._si_name]
-        left_fq_name = [self._default_domain, self._project, self._left]
-        right_fq_name = [self._default_domain, self._project, self._right]
         project = self._client.project_read(fq_name=[self._default_domain, self._project])
         try:
             si_obj = self._client.service_instance_read(fq_name=si_fq_name)
@@ -77,8 +88,8 @@ class ServiceManager(object):
 
         si_prop = ServiceInstanceType(
             management_virtual_network=None,
-            left_virtual_network=left_fq_name,
-            right_virtual_network=right_fq_name)
+            left_virtual_network=self._left_fq_name,
+            right_virtual_network=self._right_fq_name)
 
         # set scale out
         scale_out = ServiceScaleOutType(max_instances=1, auto_scale=False)
@@ -91,13 +102,39 @@ class ServiceManager(object):
 
         return si_uuid
 
+    def create_default_route(self, name=None):
+        if name:
+            self._rt_name = name
+        rt_fq_name = [self._default_domain, self._project, self._rt_name]
+        try:
+            rt_obj = self._client.route_table_read(fq_name=rt_fq_name)
+            rt_uuid = rt_obj.uuid
+        except NoIdError:
+            project = self._client.project_read(fq_name=[self._default_domain, self._project])
+            rt_obj = RouteTable(name=self._rt_name, parent_obj=project)
+            rt_uuid = self._client.route_table_create(rt_obj)
+
+        nh_str = self._default_domain + ':' + self._project + ':' + self._si_name
+        route = RouteType(prefix="0.0.0.0/0", next_hop=nh_str)
+        rt_obj.set_routes(RouteTableType.factory([route]))
+        self._client.route_table_update(rt_obj)
+
+        try:
+            vn_left_obj = self._client.virtual_network_read(fq_name=self._left_fq_name)
+        except NoIdError:
+            print "Error: VN %s not found" % (self._left)
+            return
+        vn_left_obj.set_route_table(rt_obj)
+        self._client.virtual_network_update(vn_left_obj)
+        return rt_uuid
+
+
     def create_policy_service_chain(self, name=None):
         if name:
             self._np_name = name
 
         si_fq_name = [self._default_domain, self._project, self._si_name]
-        vn_fq_list = [[self._default_domain, self._project, self._left],
-                      [self._default_domain, self._project, self._right]]
+        vn_fq_list = [self._left_fq_name, self._right_fq_name]
 
         print "Create and attach policy %s" % (self._np_name)
         project = self._client.project_read(fq_name=[self._default_domain, self._project])
@@ -105,7 +142,7 @@ class ServiceManager(object):
             vn_obj_list = [self._client.virtual_network_read(vn)
                            for vn in vn_fq_list]
         except NoIdError:
-            print "Error: VN(s) %s not found" % (self.vn_fq_list)
+            print "Error: VN(s) %s not found" % (vn_fq_list)
             return
 
         addr_list = [AddressType(virtual_network=vn.get_fq_name_str())

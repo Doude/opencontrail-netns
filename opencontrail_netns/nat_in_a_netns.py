@@ -10,7 +10,7 @@ from vrouter_control import interface_register
 from service_manage import ServiceManager
 
 def build_network_name(domain_name, project_name, network_name):
-    if network_name.find(':') == 2:
+    if len(network_name.split(':')) == 3:
         return network_name
     return "%s:%s:%s" % (domain_name, project_name, network_name.split(':')[-1])
 
@@ -75,7 +75,8 @@ def service_chain_start():
                                    project=arguments.project)
     service_chain.create_service_template()
     service_chain.create_service_instance()
-    service_chain.create_policy_service_chain()
+    service_chain.create_default_route()
+    #service_chain.create_policy_service_chain()
 
 if __name__ == "__main__":
     service_chain_start()
