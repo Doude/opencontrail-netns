@@ -110,3 +110,14 @@ class LxcManager(object):
 
     def namespace_delete(self, daemon):
         shell_command('ip netns delete ns-%s' % daemon)
+
+    def set_nat(self, cidr):
+        shell_command('ip netns exec ns-%s sh -c ' +
+                      '"echo 1 > /proc/sys/net/ipv4/ip_forward"' % daemon)
+        shell_command('ip netns exec ns-%s iptables -t nat -A POSTROUTING ' +
+                      '-s %s -j MASQUERADE' % (daemon, cidr))
+
+    def set_default_route(self, nh, interface):
+        ip route add default via 172.16.1.254 dev veth1
+        shell_command('ip netns exec ns-%s ip route add default via %s ' +
+                      'dev %s' % (daemon, nh, interface))

@@ -117,3 +117,14 @@ class Provisioner(object):
         ip_addr = ip_obj.get_instance_ip_address()
         ip_prefixlen = self._get_vmi_prefixlen(vmi)
         return (ip_addr, ip_prefixlen)
+
+    def get_network_subnet_cidr(self, vn):
+        vn_obj = self._virtual_network_lookup(vn)
+        subnet = vn_obj.network_ipam_refs[0]['attr'].ipam_subnets[0]
+        gw = subnet.default_gateway
+        return "%s/%s" % (subnet.subnet.ip_prefix, subnet.subnet.ip_prefix_len)
+
+    def get_network_gateway(self, vn):
+        vn_obj = self._virtual_network_lookup(vn)
+        subnet = vn_obj.network_ipam_refs[0]['attr'].ipam_subnets[0]
+        retrun subnet.default_gateway

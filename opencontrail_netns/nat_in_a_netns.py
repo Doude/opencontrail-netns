@@ -53,21 +53,31 @@ def service_chain_start():
 
     vm = provisioner.virtual_machine_locate(instance_name)
 
-    network = build_network_name(arguments.domain, arguments.project, arguments.left_network)
-    vmi_left = provisioner.vmi_locate(vm, network, 'veth0', 'left')
-    network = build_network_name(arguments.domain, arguments.project, arguments.right_network)
-    vmi_right = provisioner.vmi_locate(vm, network, 'veth1', 'right')
+    left_network = build_network_name(arguments.domain, arguments.project, arguments.left_network)
+    vmi_left = provisioner.vmi_locate(vm, left_network, 'int0', 'left')
+    right_network = build_network_name(arguments.domain, arguments.project, arguments.right_network)
+    vmi_right = provisioner.vmi_locate(vm, right_network, 'gw', 'right')
 
     lxc.namespace_init(arguments.daemon)
     if vmi_left:
-        ifname = lxc.interface_update(arguments.daemon, vmi_left, 'veth0')
+        ifname = lxc.interface_update(arguments.daemon, vmi_left, 'int0')
         interface_register(vm, vmi_left, ifname)
     if vmi_right:
-        ifname = lxc.interface_update(arguments.daemon, vmi_right, 'veth1')
+        ifname = lxc.interface_update(arguments.daemon, vmi_right, 'gw')
         interface_register(vm, vmi_right, ifname)
 
     ip_prefix = provisioner.get_interface_ip_prefix(vmi_left)
-    lxc.interface_config(arguments.daemon, 'veth0', ip_prefix=ip_prefix)
+    lxc.interface_config(arguments.daemon, 'int0', advertise_default=False,
+                         ip_prefix=ip_prefix)
+
+    ip_prefix = provisioner.get_interface_ip_prefix(vmi_right)
+    lxc.interface_config(arguments.daemon, 'gw', advertise_default=False,
+                         ip_prefix=ip_prefix)
+
+    left_cidr = provisioner.get_network_subnet_cidr(left_network)
+    right_gw = provisioner.get_network_gateway(right_network)
+    lxc.set_nat(arguments.daemon, left_cidr)
+    lxc.set_default_route(right_gw, 'gw')
 
     service_chain = ServiceManager(arguments.api_server, arguments.api_port,
                                    arguments.left_network,
