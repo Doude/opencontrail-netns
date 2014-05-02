@@ -54,9 +54,9 @@ def service_chain_start():
     vm = provisioner.virtual_machine_locate(instance_name)
 
     left_network = build_network_name(arguments.domain, arguments.project, arguments.left_network)
-    vmi_left = provisioner.vmi_locate(vm, left_network, 'int0', 'left')
+    vmi_left = provisioner.vmi_locate(vm, left_network, 'int0', itf_type='left')
     right_network = build_network_name(arguments.domain, arguments.project, arguments.right_network)
-    vmi_right = provisioner.vmi_locate(vm, right_network, 'gw', 'right')
+    vmi_right = provisioner.vmi_locate(vm, right_network, 'gw', itf_type='right')
 
     lxc.namespace_init(arguments.daemon)
     if vmi_left:
@@ -77,7 +77,7 @@ def service_chain_start():
     left_cidr = provisioner.get_network_subnet_cidr(left_network)
     right_gw = provisioner.get_network_gateway(right_network)
     lxc.set_nat(arguments.daemon, left_cidr)
-    lxc.set_default_route(right_gw, 'gw')
+    lxc.set_default_route(arguments.daemon, right_gw, 'gw')
 
     service_chain = ServiceManager(arguments.api_server, arguments.api_port,
                                    arguments.left_network,

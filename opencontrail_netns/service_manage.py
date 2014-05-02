@@ -129,7 +129,6 @@ class ServiceManager(object):
         self._client.virtual_network_update(vn_left_obj)
         return rt_uuid
 
-
     def create_policy_service_chain(self, name=None):
         if name:
             self._np_name = name
@@ -164,7 +163,11 @@ class ServiceManager(object):
         np_obj = NetworkPolicy(name=self._np_name,
                                network_policy_entries=pentry,
                                parent_obj=project)
-        np_uuid = self._client.network_policy_create(np_obj)
+        try:
+            np_fq_name = [self._default_domain, self._project, self._np_name]
+            np_uuid = self._client.network_policy_update(np_obj)
+        except NoIdError:
+            np_uuid = self._client.network_policy_create(np_obj)
 
         seq = SequenceType(1, 1)
         vn_policy = VirtualNetworkPolicyType(seq, timer)

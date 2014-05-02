@@ -127,4 +127,4 @@ class Provisioner(object):
     def get_network_gateway(self, vn):
         vn_obj = self._virtual_network_lookup(vn)
         subnet = vn_obj.network_ipam_refs[0]['attr'].ipam_subnets[0]
-        retrun subnet.default_gateway
+        return subnet.default_gateway

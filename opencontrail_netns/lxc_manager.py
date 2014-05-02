@@ -80,12 +80,12 @@ class LxcManager(object):
             shell_command('ip netns exec ns-%s dhclient %s' %
                           (daemon, ifname_guest))
         else:
-            shell_command('ip netns exec ns-%s ip addr add %s/%d dev %s' %
+            shell_command('ip netns exec ns-%s ip addr replace %s/%d dev %s' %
                           (daemon, ip_prefix[0], ip_prefix[1], ifname_guest))
             shell_command('ip netns exec ns-%s ip link set %s up' %
                           (daemon, ifname_guest))
             # disable reverse path filtering
-            shell_command('ip netns exec ns-%s sh -c ' +
+            shell_command('ip netns exec ns-%s sh -c '
                           '"echo 2 >/proc/sys/net/ipv4/conf/%s/rp_filter"' %
                           (daemon, ifname_guest))
 
@@ -111,13 +111,12 @@ class LxcManager(object):
     def namespace_delete(self, daemon):
         shell_command('ip netns delete ns-%s' % daemon)
 
-    def set_nat(self, cidr):
-        shell_command('ip netns exec ns-%s sh -c ' +
+    def set_nat(self, daemon, cidr):
+        shell_command('ip netns exec ns-%s sh -c '
                       '"echo 1 > /proc/sys/net/ipv4/ip_forward"' % daemon)
-        shell_command('ip netns exec ns-%s iptables -t nat -A POSTROUTING ' +
+        shell_command('ip netns exec ns-%s iptables -t nat -A POSTROUTING '
                       '-s %s -j MASQUERADE' % (daemon, cidr))
 
-    def set_default_route(self, nh, interface):
-        ip route add default via 172.16.1.254 dev veth1
-        shell_command('ip netns exec ns-%s ip route add default via %s ' +
+    def set_default_route(self, daemon, nh, interface):
+        shell_command('ip netns exec ns-%s ip route add default via %s '
                       'dev %s' % (daemon, nh, interface))
