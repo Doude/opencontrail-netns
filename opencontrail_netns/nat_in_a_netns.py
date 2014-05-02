@@ -54,9 +54,9 @@ def service_chain_start():
     vm = provisioner.virtual_machine_locate(instance_name)
 
     network = build_network_name(arguments.domain, arguments.project, arguments.left_network)
-    vmi_left = provisioner.vmi_locate(vm, network, 'veth0')
+    vmi_left = provisioner.vmi_locate(vm, network, 'veth0', 'left')
     network = build_network_name(arguments.domain, arguments.project, arguments.right_network)
-    vmi_right = provisioner.vmi_locate(vm, network, 'veth1')
+    vmi_right = provisioner.vmi_locate(vm, network, 'veth1', 'right')
 
     lxc.namespace_init(arguments.daemon)
     if vmi_left:
@@ -73,10 +73,11 @@ def service_chain_start():
                                    arguments.left_network,
                                    arguments.right_network,
                                    project=arguments.project)
-    service_chain.create_service_template()
-    service_chain.create_service_instance()
-    service_chain.create_default_route()
-    #service_chain.create_policy_service_chain()
+    st_uuid = service_chain.create_service_template()
+    si_uuid = service_chain.create_service_instance()
+    service_chain.create_policy_service_chain()
+    vm_uuid = service_chain.associate_virtual_machine(vm.uuid)
+    rt_uuid = service_chain.create_default_route()
 
 if __name__ == "__main__":
     service_chain_start()

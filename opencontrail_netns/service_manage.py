@@ -45,7 +45,7 @@ class ServiceManager(object):
         #svc_properties.set_image_name(self._args.image_name)
         svc_properties.set_service_scaling(False)
         svc_properties.set_service_type('firewall')
-        svc_properties.set_service_mode('in-network-nat')
+        svc_properties.set_service_mode('in-network')
 
         if_list = [['left', False], ['right', False]]
         for itf in if_list:
@@ -89,7 +89,8 @@ class ServiceManager(object):
         si_prop = ServiceInstanceType(
             management_virtual_network=None,
             left_virtual_network=self._left_fq_name,
-            right_virtual_network=self._right_fq_name)
+            right_virtual_network=self._right_fq_name,
+            auto_policy=True)
 
         # set scale out
         scale_out = ServiceScaleOutType(max_instances=1, auto_scale=False)
@@ -172,3 +173,19 @@ class ServiceManager(object):
             self._client.virtual_network_update(vn)
 
         return np_uuid
+
+    def associate_virtual_machine(self, vm_uuid):
+        try:
+            vm_obj = self._client.virtual_machine_read(id=vm_uuid)
+        except NoIdError:
+            print "Error, VM %s does not exist" % (vm_uuid)
+            return
+        si_fq_name = [self._default_domain, self._project, self._si_name]
+        try:
+            si_obj = self._client.service_instance_read(fq_name=si_fq_name)
+        except NoIdError:
+            print "Error, service instance %s does not exist" % (si_fq_name)
+            return
+        vm_obj.set_service_instance(si_obj)
+        self._client.virtual_machine_update(vm_obj)
+        return vm_obj.uuid

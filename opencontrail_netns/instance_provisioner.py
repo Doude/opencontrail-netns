@@ -46,7 +46,8 @@ class Provisioner(object):
 
         return vnet
 
-    def vmi_locate(self, vm_instance, network, name, advertise_default=True):
+    def vmi_locate(self, vm_instance, network, name, advertise_default=True,
+                   itf_type=None):
         fq_name = vm_instance.fq_name[:]
         fq_name.append(name)
         create = False
@@ -62,6 +63,11 @@ class Provisioner(object):
             sys.exit(1)
 
         vmi.set_virtual_network(vnet)
+
+        if itf_type:
+            if_properties = VirtualMachineInterfacePropertiesType(itf_type)
+            vmi.set_virtual_machine_interface_properties(if_properties)
+
         if create:
             self._client.virtual_machine_interface_create(vmi)
             vmi = self._client.virtual_machine_interface_read(id=vmi.uuid)
