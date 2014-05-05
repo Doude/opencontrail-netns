@@ -117,6 +117,11 @@ class LxcManager(object):
         shell_command('ip netns exec ns-%s iptables -t nat -A POSTROUTING '
                       '-s %s -o %s -j MASQUERADE' % (daemon, cidr, itf))
 
+    def clean_nat_rules(self, daemon):
+        shell_command('ip netns exec ns-%s sh -c '
+                      '"echo 0 > /proc/sys/net/ipv4/ip_forward"' % daemon)
+        shell_command('ip netns exec ns-%s iptables -t nat -F POSTROUTING' % daemon)
+
     def set_route_via_interface(self, daemon, subnet, interface):
         shell_command('ip netns exec ns-%s ip route replace %s '
                       'dev %s' % (daemon, subnet, interface))

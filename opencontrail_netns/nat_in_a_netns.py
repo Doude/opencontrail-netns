@@ -46,13 +46,12 @@ def service_chain_start():
 
     lxc = LxcManager()
     provisioner = Provisioner(api_server=args.api_server,
-                              api_port=args.api_port,
-                              project=args.project)
+                              api_port=args.api_port)
 
     instance_name = '%s-%s' % (socket.gethostname(), args.nat)
     vm = provisioner.virtual_machine_locate(instance_name)
 
-    left_network = build_network_name(args.domain, args.project, '%s-snat-net' % args.nat)
+    left_network = build_network_name(args.domain, 'default-project', '%s-snat-net' % args.nat)
     provisioner.net_locate(left_network)
     vmi_left = provisioner.vmi_locate(vm, left_network, 'snat_itf', itf_type='left')
     right_network = build_network_name(args.domain, args.project, args.public_network)
@@ -79,20 +78,20 @@ def service_chain_start():
 
     service_chain = ServiceManager(args.api_server, args.api_port,
                                    left_network,
-                                   right_network,
-                                   project=args.project)
+                                   right_network)
     st_uuid = service_chain.create_service_template()
     si_uuid = service_chain.create_service_instance()
     service_chain.create_policy_service_chain()
     vm_uuid = service_chain.associate_virtual_machine(vm.uuid)
 
     rt_obj = service_chain.create_default_route()
+    lxc.clean_nat_rules(args.nat)
     for network in args.networks:
         network_name = build_network_name(args.domain, args.project, network)
         network_cidr = provisioner.get_network_subnet_cidr(network_name)
-        lxc.set_nat(args.nat, network_cidr, 'snat_itf')
+        lxc.set_nat(args.nat, network_cidr, 'gw')
         lxc.set_route_via_interface(args.nat, network_cidr, 'snat_itf')
-        service_chain.add_route_table(rt_obj, network)
+        service_chain.add_route_table(rt_obj, network_name)
 
 if __name__ == "__main__":
     service_chain_start()

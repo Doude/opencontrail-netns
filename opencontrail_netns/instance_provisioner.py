@@ -37,7 +37,7 @@ class Provisioner(object):
     def virtual_machine_delete(self, vm_instance):
         self._client.virtual_machine_delete(id=vm_instance.uuid)
 
-    def net_locate(self, vnet_name, subnet='169.254.254.0/24'):
+    def net_locate(self, vnet_name, subnet='169.254.255.0/24'):
         fq_name = vnet_name.split(':')
         try:
             vnet = self._client.virtual_network_read(fq_name=fq_name)
