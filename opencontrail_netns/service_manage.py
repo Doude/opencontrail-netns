@@ -119,15 +119,18 @@ class ServiceManager(object):
         route = RouteType(prefix="0.0.0.0/0", next_hop=nh_str)
         rt_obj.set_routes(RouteTableType.factory([route]))
         self._client.route_table_update(rt_obj)
+        return rt_obj
 
+    def add_route_table(self, rt_obj, network_name):
+        vn_fq_name = build_network_fq_name(self._default_domain, self._project, network_name)
         try:
-            vn_left_obj = self._client.virtual_network_read(fq_name=self._left_fq_name)
+            vn_obj = self._client.virtual_network_read(fq_name=vn_fq_name)
         except NoIdError:
-            print "Error: VN %s not found" % (self._left)
+            print "Error: VN %s not found" % (vn_fq_name)
             return
-        vn_left_obj.set_route_table(rt_obj)
-        self._client.virtual_network_update(vn_left_obj)
-        return rt_uuid
+        vn_obj.set_route_table(rt_obj)
+        self._client.virtual_network_update(vn_obj)
+        return rt_obj
 
     def create_policy_service_chain(self, name=None):
         if name:

@@ -32,62 +32,67 @@ def service_chain_start():
         'network': 'default-network',
     }
     parser.set_defaults(**defaults)
-    parser.add_argument("left_network", help="Left network")
-    parser.add_argument("right_network", help="Right network")
-    parser.add_argument("daemon", help="Daemon Name")
     parser.add_argument("-s", "--api-server", help="API server address")
     parser.add_argument("-p", "--api-port", type=int, help="API server port")
     parser.add_argument("--domain", help="OpenStack domain name",
                         action="store")
     parser.add_argument("--project", help="OpenStack project name",
                         action="store")
-
-    arguments = parser.parse_args()
+    parser.add_argument("public_network", help="Public network")
+    parser.add_argument("-n", "--network", action='append', default=[], dest='networks',
+                        help="Private network natted to the public")
+    parser.add_argument("nat", help="Nat router name")
+    args = parser.parse_args()
 
     lxc = LxcManager()
-    provisioner = Provisioner(api_server=arguments.api_server,
-                              api_port=arguments.api_port,
-                              project=arguments.project)
+    provisioner = Provisioner(api_server=args.api_server,
+                              api_port=args.api_port,
+                              project=args.project)
 
-    instance_name = '%s-%s' % (socket.gethostname(), arguments.daemon)
-
+    instance_name = '%s-%s' % (socket.gethostname(), args.nat)
     vm = provisioner.virtual_machine_locate(instance_name)
 
-    left_network = build_network_name(arguments.domain, arguments.project, arguments.left_network)
-    vmi_left = provisioner.vmi_locate(vm, left_network, 'int0', itf_type='left')
-    right_network = build_network_name(arguments.domain, arguments.project, arguments.right_network)
+    left_network = build_network_name(args.domain, args.project, '%s-snat-net' % args.nat)
+    provisioner.net_locate(left_network)
+    vmi_left = provisioner.vmi_locate(vm, left_network, 'snat_itf', itf_type='left')
+    right_network = build_network_name(args.domain, args.project, args.public_network)
     vmi_right = provisioner.vmi_locate(vm, right_network, 'gw', itf_type='right')
 
-    lxc.namespace_init(arguments.daemon)
+    lxc.namespace_init(args.nat)
     if vmi_left:
-        ifname = lxc.interface_update(arguments.daemon, vmi_left, 'int0')
+        ifname = lxc.interface_update(args.nat, vmi_left, 'snat_itf')
         interface_register(vm, vmi_left, ifname)
     if vmi_right:
-        ifname = lxc.interface_update(arguments.daemon, vmi_right, 'gw')
+        ifname = lxc.interface_update(args.nat, vmi_right, 'gw')
         interface_register(vm, vmi_right, ifname)
 
     ip_prefix = provisioner.get_interface_ip_prefix(vmi_left)
-    lxc.interface_config(arguments.daemon, 'int0', advertise_default=False,
+    lxc.interface_config(args.nat, 'snat_itf', advertise_default=False,
                          ip_prefix=ip_prefix)
 
     ip_prefix = provisioner.get_interface_ip_prefix(vmi_right)
-    lxc.interface_config(arguments.daemon, 'gw', advertise_default=False,
+    lxc.interface_config(args.nat, 'gw', advertise_default=False,
                          ip_prefix=ip_prefix)
 
-    left_cidr = provisioner.get_network_subnet_cidr(left_network)
     right_gw = provisioner.get_network_gateway(right_network)
-    lxc.set_nat(arguments.daemon, left_cidr)
-    lxc.set_default_route(arguments.daemon, right_gw, 'gw')
+    lxc.set_default_route(args.nat, right_gw, 'gw')
 
-    service_chain = ServiceManager(arguments.api_server, arguments.api_port,
-                                   arguments.left_network,
-                                   arguments.right_network,
-                                   project=arguments.project)
+    service_chain = ServiceManager(args.api_server, args.api_port,
+                                   left_network,
+                                   right_network,
+                                   project=args.project)
     st_uuid = service_chain.create_service_template()
     si_uuid = service_chain.create_service_instance()
     service_chain.create_policy_service_chain()
     vm_uuid = service_chain.associate_virtual_machine(vm.uuid)
-    rt_uuid = service_chain.create_default_route()
+
+    rt_obj = service_chain.create_default_route()
+    for network in args.networks:
+        network_name = build_network_name(args.domain, args.project, network)
+        network_cidr = provisioner.get_network_subnet_cidr(network_name)
+        lxc.set_nat(args.nat, network_cidr, 'snat_itf')
+        lxc.set_route_via_interface(args.nat, network_cidr, 'snat_itf')
+        service_chain.add_route_table(rt_obj, network)
 
 if __name__ == "__main__":
     service_chain_start()

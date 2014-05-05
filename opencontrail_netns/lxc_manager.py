@@ -111,12 +111,16 @@ class LxcManager(object):
     def namespace_delete(self, daemon):
         shell_command('ip netns delete ns-%s' % daemon)
 
-    def set_nat(self, daemon, cidr):
+    def set_nat(self, daemon, cidr, itf):
         shell_command('ip netns exec ns-%s sh -c '
                       '"echo 1 > /proc/sys/net/ipv4/ip_forward"' % daemon)
         shell_command('ip netns exec ns-%s iptables -t nat -A POSTROUTING '
-                      '-s %s -j MASQUERADE' % (daemon, cidr))
+                      '-s %s -o %s -j MASQUERADE' % (daemon, cidr, itf))
+
+    def set_route_via_interface(self, daemon, subnet, interface):
+        shell_command('ip netns exec ns-%s ip route replace %s '
+                      'dev %s' % (daemon, subnet, interface))
 
     def set_default_route(self, daemon, nh, interface):
-        shell_command('ip netns exec ns-%s ip route add default via %s '
+        shell_command('ip netns exec ns-%s ip route replace default via %s '
                       'dev %s' % (daemon, nh, interface))

@@ -37,6 +37,22 @@ class Provisioner(object):
     def virtual_machine_delete(self, vm_instance):
         self._client.virtual_machine_delete(id=vm_instance.uuid)
 
+    def net_locate(self, vnet_name, subnet='169.254.254.0/24'):
+        fq_name = vnet_name.split(':')
+        try:
+            vnet = self._client.virtual_network_read(fq_name=fq_name)
+        except NoIdError:
+            vnet = VirtualNetwork(parent_type = 'project', fq_name=fq_name)
+            ipam = self._client.network_ipam_read(
+                fq_name = ['default-domain',
+                           'default-project',
+                           'default-network-ipam'])
+            (prefix, plen) = subnet.split('/')
+            subnet = IpamSubnetType(subnet=SubnetType(prefix, int(plen)))
+            vnet.add_network_ipam(ipam, VnSubnetsType([subnet]))
+            self._client.virtual_network_create(vnet)
+        return vnet
+
     def _virtual_network_lookup(self, network_name):
         fq_name = network_name.split(':')
         try:
